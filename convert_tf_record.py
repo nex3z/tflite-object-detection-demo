@@ -1,11 +1,17 @@
 import glob
-import json
 import os
 import xml.etree.ElementTree as ET
 from argparse import ArgumentParser
 
 import tensorflow as tf
 from object_detection.utils import dataset_util
+
+ITEM_TEMPLATE = """item {{
+    name: '{name}',
+    id: {id},
+    display_name: '{display_name}'
+}}
+"""
 
 
 def main():
@@ -14,7 +20,7 @@ def main():
     classes_map = build_classes_map(options.classes)
     print(f"classes_map = {classes_map}")
 
-    writer = tf.io.TFRecordWriter(options.output_record)
+    writer = tf.io.TFRecordWriter(options.tf_record)
 
     for image_file in glob.glob(os.path.join(options.data_dir, '*.jpg')):
         label_file = os.path.splitext(image_file)[0] + '.xml'
@@ -24,18 +30,13 @@ def main():
 
     writer.close()
 
-    entries = []
+    items = []
     for label_name, label_id in classes_map.items():
-        item = {
-            'name': label_name,
-            'id': label_id,
-            'display_name': label_name
-        }
-        entry = "item " + json.dumps(item, indent=4, ensure_ascii=False)
-        entries.append(entry)
-    content = "\n".join(entries)
+        item = ITEM_TEMPLATE.format(name=label_name, id=label_id, display_name=label_name)
+        items.append(item)
+    content = "\n".join(items)
 
-    f = open(options.output_labelmap, 'w')
+    f = open(options.label_map, 'w', encoding='utf8')
     f.write(content)
     f.close()
 
@@ -124,8 +125,8 @@ def build_parser():
     parser = ArgumentParser()
     parser.add_argument('--labeled', dest='data_dir', default='./data/labeled')
     parser.add_argument('--classes', dest='classes', default='./data/classes.txt')
-    parser.add_argument('--output_record', dest='output_record', default='./train.record')
-    parser.add_argument('--output_labelmap', dest='output_labelmap', default='./labelmap.pbtxt')
+    parser.add_argument('--tf_record', dest='tf_record', default='./train.record')
+    parser.add_argument('--label_map', dest='label_map', default='./label_map.pbtxt')
     return parser
 
 
